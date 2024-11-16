@@ -34,7 +34,7 @@ class App(QWidget):
         # Title Label
         title_label = QLabel("Text to PDF Converter", self)
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        title_label.setStyleSheet("font-size: 22px; font-weight: bold; color: #2C3E50;")
         layout.addWidget(title_label)
 
         # File selection
@@ -42,10 +42,12 @@ class App(QWidget):
         self.file_entry = QLineEdit(self)
         self.file_entry.setPlaceholderText("Select a text file...")
         self.file_entry.setReadOnly(True)
+        self.file_entry.setStyleSheet("font-size: 14px; padding: 5px; border-radius: 5px; background-color: #ecf0f1;")
         file_layout.addWidget(self.file_entry)
 
         browse_button = QPushButton("Browse", self)
         browse_button.clicked.connect(self.browse_file)
+        browse_button.setStyleSheet("background-color: #3498db; color: white; font-size: 14px; padding: 10px; border-radius: 5px;")
         file_layout.addWidget(browse_button)
 
         layout.addLayout(file_layout)
@@ -53,14 +55,16 @@ class App(QWidget):
         # Convert Button
         convert_button = QPushButton("Convert to PDF", self)
         convert_button.clicked.connect(self.convert_to_pdf)
+        convert_button.setStyleSheet("background-color: #2ecc71; color: white; font-size: 14px; padding: 10px; border-radius: 5px;")
         layout.addWidget(convert_button)
 
         # Saved PDFs Section
         saved_label = QLabel("Saved PDFs", self)
-        saved_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        saved_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #34495e;")
         layout.addWidget(saved_label)
 
         self.pdf_listbox = QListWidget(self)
+        self.pdf_listbox.setStyleSheet("background-color: #ecf0f1; font-size: 14px; border: 1px solid #ccc; border-radius: 5px;")
         layout.addWidget(self.pdf_listbox)
 
         # Buttons for managing PDFs
@@ -68,10 +72,12 @@ class App(QWidget):
 
         delete_button = QPushButton("Delete Selected PDF", self)
         delete_button.clicked.connect(self.delete_pdf)
+        delete_button.setStyleSheet("background-color: #e74c3c; color: white; font-size: 14px; padding: 10px; border-radius: 5px;")
         button_layout.addWidget(delete_button)
 
         open_folder_button = QPushButton("Open PDF Folder", self)
         open_folder_button.clicked.connect(self.open_pdf_folder)
+        open_folder_button.setStyleSheet("background-color: #f39c12; color: white; font-size: 14px; padding: 10px; border-radius: 5px;")
         button_layout.addWidget(open_folder_button)
 
         layout.addLayout(button_layout)
