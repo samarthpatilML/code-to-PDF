@@ -1,6 +1,8 @@
 import os
 from fpdf import FPDF
-from tkinter import Tk, filedialog, messagebox, Button, Label, Listbox, END
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QLineEdit, QFileDialog, QListWidget, QMessageBox
+from PyQt5.QtCore import Qt
+
 
 # Folder to store generated PDFs
 PDF_FOLDER = "SavedPDFs"
@@ -14,106 +16,142 @@ class PDF(FPDF):
         self.set_font("Arial", "B", 12)
         self.cell(0, 10, "Text to PDF Conversion", 0, 1, "C")
 
-# Function to convert text file to PDF
-def convert_to_pdf():
-    # Open file dialog for selecting a text file
-    file_path = filedialog.askopenfilename(
-        title="Select a Text File",
-        filetypes=(("Text Files", "*.txt"), ("All Files", "*.*"))
-    )
-    
-    # Check if a file was selected
-    if not file_path:
-        messagebox.showwarning("No File Selected", "Please select a text file to convert.")
-        return
 
-    # Ensure the selected file is a text file
-    if not file_path.endswith(".txt"):
-        messagebox.showerror("Invalid File", "Please select a valid text file (*.txt).")
-        return
+class App(QWidget):
+    def __init__(self):
+        super().__init__()
 
-    try:
-        # Initialize PDF
-        pdf = PDF()
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
+        self.setWindowTitle("Text to PDF Converter")
+        self.setGeometry(100, 100, 600, 450)
 
-        # Read the content of the text file and write it to the PDF
-        with open(file_path, "r", encoding="utf-8") as file:
-            for line in file:
-                pdf.multi_cell(0, 10, line)
+        self.file_path = None
+        self.initUI()
 
-        # Save the PDF to the SavedPDFs folder
-        pdf_filename = os.path.join(PDF_FOLDER, os.path.basename(file_path).replace(".txt", ".pdf"))
-        pdf.output(pdf_filename)
+    def initUI(self):
+        # Main layout
+        layout = QVBoxLayout()
 
-        # Notify the user of success and refresh the list
-        messagebox.showinfo("Success", f"PDF saved successfully: {pdf_filename}")
-        refresh_pdf_list()
-    except Exception as e:
-        messagebox.showerror("Error", f"An error occurred while processing the file: {e}")
+        # Title Label
+        title_label = QLabel("Text to PDF Converter", self)
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        layout.addWidget(title_label)
 
-# Function to refresh the list of stored PDFs
-def refresh_pdf_list():
-    pdf_listbox.delete(0, END)
-    pdf_files = [f for f in os.listdir(PDF_FOLDER) if f.endswith(".pdf")]
-    for pdf in pdf_files:
-        pdf_listbox.insert(END, pdf)
+        # File selection
+        file_layout = QHBoxLayout()
+        self.file_entry = QLineEdit(self)
+        self.file_entry.setPlaceholderText("Select a text file...")
+        self.file_entry.setReadOnly(True)
+        file_layout.addWidget(self.file_entry)
 
-# Function to delete a selected PDF
-def delete_pdf():
-    selected = pdf_listbox.curselection()
-    if not selected:
-        messagebox.showwarning("Warning", "Please select a PDF to delete.")
-        return
+        browse_button = QPushButton("Browse", self)
+        browse_button.clicked.connect(self.browse_file)
+        file_layout.addWidget(browse_button)
 
-    pdf_name = pdf_listbox.get(selected)
-    pdf_path = os.path.join(PDF_FOLDER, pdf_name)
-    try:
-        os.remove(pdf_path)
-        messagebox.showinfo("Success", f"Deleted: {pdf_name}")
-        refresh_pdf_list()
-    except Exception as e:
-        messagebox.showerror("Error", f"Could not delete {pdf_name}: {e}")
+        layout.addLayout(file_layout)
 
-# Function to open the folder where PDFs are stored
-def open_pdf_folder():
-    os.startfile(PDF_FOLDER)
+        # Convert Button
+        convert_button = QPushButton("Convert to PDF", self)
+        convert_button.clicked.connect(self.convert_to_pdf)
+        layout.addWidget(convert_button)
 
-# GUI Application
-def create_gui():
-    root = Tk()
-    root.title("Text to PDF Converter")
-    root.geometry("500x400")
+        # Saved PDFs Section
+        saved_label = QLabel("Saved PDFs", self)
+        saved_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        layout.addWidget(saved_label)
 
-    # Title Label
-    title_label = Label(root, text="Text to PDF Converter", font=("Arial", 16))
-    title_label.pack(pady=10)
+        self.pdf_listbox = QListWidget(self)
+        layout.addWidget(self.pdf_listbox)
 
-    # Convert Button
-    convert_button = Button(root, text="Convert Text File to PDF", font=("Arial", 12), command=convert_to_pdf)
-    convert_button.pack(pady=10)
+        # Buttons for managing PDFs
+        button_layout = QHBoxLayout()
 
-    # Label for Saved PDFs
-    saved_label = Label(root, text="Saved PDFs", font=("Arial", 14))
-    saved_label.pack(pady=5)
+        delete_button = QPushButton("Delete Selected PDF", self)
+        delete_button.clicked.connect(self.delete_pdf)
+        button_layout.addWidget(delete_button)
 
-    # Listbox to display stored PDFs
-    global pdf_listbox
-    pdf_listbox = Listbox(root, font=("Arial", 12), height=10, width=50)
-    pdf_listbox.pack(pady=10)
+        open_folder_button = QPushButton("Open PDF Folder", self)
+        open_folder_button.clicked.connect(self.open_pdf_folder)
+        button_layout.addWidget(open_folder_button)
 
-    # Buttons for managing PDFs
-    delete_button = Button(root, text="Delete Selected PDF", font=("Arial", 12), command=delete_pdf)
-    delete_button.pack(pady=5)
+        layout.addLayout(button_layout)
 
-    open_folder_button = Button(root, text="Open PDF Folder", font=("Arial", 12), command=open_pdf_folder)
-    open_folder_button.pack(pady=5)
+        # Set layout for the window
+        self.setLayout(layout)
 
-    # Refresh the list of PDFs on startup
-    refresh_pdf_list()
+        # Refresh the list of PDFs on startup
+        self.refresh_pdf_list()
 
-    root.mainloop()
+    def browse_file(self):
+        file_dialog = QFileDialog(self)
+        file_dialog.setFileMode(QFileDialog.ExistingFiles)
+        file_dialog.setNameFilter("Text Files (*.txt)")
+        file_dialog.setViewMode(QFileDialog.List)
+
+        if file_dialog.exec_():
+            file_path = file_dialog.selectedFiles()[0]
+            self.file_path = file_path
+            self.file_entry.setText(file_path)
+
+    def convert_to_pdf(self):
+        if not self.file_path:
+            self.show_message("No File Selected", "Please select a text file to convert.")
+            return
+
+        if not self.file_path.endswith(".txt"):
+            self.show_message("Invalid File", "Please select a valid text file (*.txt).")
+            return
+
+        try:
+            pdf = PDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+
+            with open(self.file_path, "r", encoding="utf-8") as file:
+                for line in file:
+                    pdf.multi_cell(0, 10, line)
+
+            # Save the PDF in the SavedPDFs folder
+            pdf_filename = os.path.join(PDF_FOLDER, os.path.basename(self.file_path).replace(".txt", ".pdf"))
+            pdf.output(pdf_filename)
+
+            self.show_message("Success", f"PDF saved successfully: {pdf_filename}")
+            self.refresh_pdf_list()
+
+        except Exception as e:
+            self.show_message("Error", f"An error occurred while processing the file: {e}")
+
+    def refresh_pdf_list(self):
+        self.pdf_listbox.clear()
+        pdf_files = [f for f in os.listdir(PDF_FOLDER) if f.endswith(".pdf")]
+        self.pdf_listbox.addItems(pdf_files)
+
+    def delete_pdf(self):
+        selected_item = self.pdf_listbox.currentItem()
+        if not selected_item:
+            self.show_message("Warning", "Please select a PDF to delete.")
+            return
+
+        pdf_name = selected_item.text()
+        pdf_path = os.path.join(PDF_FOLDER, pdf_name)
+
+        try:
+            os.remove(pdf_path)
+            self.show_message("Success", f"Deleted: {pdf_name}")
+            self.refresh_pdf_list()
+
+        except Exception as e:
+            self.show_message("Error", f"Could not delete {pdf_name}: {e}")
+
+    def open_pdf_folder(self):
+        os.startfile(PDF_FOLDER)
+
+    def show_message(self, title, message):
+        QMessageBox.information(self, title, message)
+
 
 if __name__ == "__main__":
-    create_gui()
+    app = QApplication([])
+    window = App()
+    window.show()
+    app.exec_()
