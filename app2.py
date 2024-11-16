@@ -1,9 +1,9 @@
 import os
 from fpdf import FPDF
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QLineEdit, QFileDialog, QListWidget, QMessageBox, QComboBox, QAction, QMenu, QRadioButton, QCheckBox, QDialog, QDialogButtonBox
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QLineEdit, QFileDialog, QListWidget, QMessageBox, QComboBox, QRadioButton, QCheckBox, QDialog, QDialogButtonBox
 from PyQt5.QtCore import Qt
 
-# Folder to store generated PDFs
+# Folder to store generated PDFs (default folder)
 PDF_FOLDER = "SavedPDFs"
 
 # Create the folder if it doesn't exist
@@ -15,7 +15,6 @@ class PDF(FPDF):
         self.set_font("Arial", "B", 12)
         self.cell(0, 10, "Code to PDF Conversion", 0, 1, "C")
 
-
 class App(QWidget):
     def __init__(self):
         super().__init__()
@@ -23,10 +22,12 @@ class App(QWidget):
         self.setWindowTitle("Code to PDF Converter")
         self.setGeometry(100, 100, 600, 450)
 
-        self.file_path = None
-        self.is_drag_and_drop_enabled = True  # Enable drag and drop by default
-        self.is_dark_mode = False  # Disable dark mode by default
+        # Default settings
+        self.is_drag_and_drop_enabled = True
+        self.is_dark_mode = False
+        self.save_folder = PDF_FOLDER
 
+        self.file_path = None
         self.initUI()
 
     def initUI(self):
@@ -191,8 +192,8 @@ class App(QWidget):
                 for line in file:
                     pdf.multi_cell(0, 10, line)
 
-            # Save the PDF in the SavedPDFs folder
-            pdf_filename = os.path.join(PDF_FOLDER, os.path.basename(self.file_path).replace(file_extension, ".pdf"))
+            # Save the PDF in the chosen folder
+            pdf_filename = os.path.join(self.save_folder, os.path.basename(self.file_path).replace(file_extension, ".pdf"))
             pdf.output(pdf_filename)
 
             self.show_message("Success", f"PDF saved successfully: {pdf_filename}")
@@ -202,7 +203,7 @@ class App(QWidget):
 
     def refresh_pdf_list(self):
         self.pdf_listbox.clear()
-        pdf_files = [f for f in os.listdir(PDF_FOLDER) if f.endswith(".pdf")]
+        pdf_files = [f for f in os.listdir(self.save_folder) if f.endswith(".pdf")]
         self.pdf_listbox.addItems(pdf_files)
 
     def delete_pdf(self):
@@ -212,7 +213,7 @@ class App(QWidget):
             return
 
         pdf_name = selected[0].text()
-        pdf_path = os.path.join(PDF_FOLDER, pdf_name)
+        pdf_path = os.path.join(self.save_folder, pdf_name)
         try:
             os.remove(pdf_path)
             self.show_message("Success", f"Deleted: {pdf_name}")
@@ -221,21 +222,17 @@ class App(QWidget):
             self.show_message("Error", f"Could not delete {pdf_name}: {e}")
 
     def open_pdf_folder(self):
-        os.startfile(PDF_FOLDER)
+        os.startfile(self.save_folder)
 
     def show_message(self, title, message):
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle(title)
-        msg_box.setText(message)
-        msg_box.exec_()
-
+        QMessageBox.information(self, title, message)
 
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
 
         self.setWindowTitle("Settings")
-        self.setGeometry(100, 100, 300, 200)
+        self.setGeometry(100, 100, 300, 250)
 
         layout = QVBoxLayout()
 
@@ -257,6 +254,11 @@ class SettingsDialog(QDialog):
         self.drag_and_drop_checkbox.setChecked(parent.is_drag_and_drop_enabled)
         layout.addWidget(self.drag_and_drop_checkbox)
 
+        # Save Location Button
+        self.save_location_button = QPushButton("Select Save Folder", self)
+        self.save_location_button.clicked.connect(self.select_save_folder)
+        layout.addWidget(self.save_location_button)
+
         # Buttons to apply settings
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         button_box.accepted.connect(self.apply_settings)
@@ -269,11 +271,17 @@ class SettingsDialog(QDialog):
         dark_mode = self.dark_mode_radio.isChecked()
         drag_and_drop = self.drag_and_drop_checkbox.isChecked()
 
+        # Apply settings to the main app
         self.parent().toggle_dark_mode(dark_mode)
         self.parent().toggle_drag_and_drop(drag_and_drop)
 
+        # Close the dialog
         self.accept()
 
+    def select_save_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder", self.parent().save_folder)
+        if folder:
+            self.parent().set_save_folder(folder)
 
 if __name__ == "__main__":
     app = QApplication([])
