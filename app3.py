@@ -1,37 +1,51 @@
+import sys
 import os
-from fpdf import FPDF
-from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QLineEdit, QFileDialog,
-    QListWidget, QListWidgetItem, QMessageBox, QComboBox, QDialog, QDialogButtonBox, QCheckBox
-)
-from PyQt5.QtGui import QIcon, QPixmap, QFont, QFontDatabase
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QLineEdit, QFileDialog, QComboBox, QMessageBox, QListWidget, QHBoxLayout, QDialog, QDialogButtonBox
+from PyQt5.QtGui import QIcon, QPixmap, QFont
 from PyQt5.QtCore import Qt, QSize
+from fpdf import FPDF
 
-# Define folder paths and default save folder
-PDF_FOLDER = "SavedPDFs"
-if not os.path.exists(PDF_FOLDER):
-    os.makedirs(PDF_FOLDER)
+# Constants for paths
+LOGO_ICON_PATH = 'logo.png'  # Replace with your logo image path
+SETTINGS_ICON_PATH = 'settings_icon.png'  # Replace with your settings icon path
+PDF_FOLDER = os.path.join(os.path.expanduser("~"), "Documents", "PDFs")
+FILE_ICON_PATH = 'file_icon.png'  # Replace with your file icon path
 
-# Paths for image assets (update these with your file paths)
-LOGO_ICON_PATH = "logo.png"  # Path to the app's logo
-SETTINGS_ICON_PATH = "settings.png"  # Path to the settings button icon
-FILE_ICON_PATH = "folderblue.png"  # Icon for each saved file in the list
+class SettingsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Settings")
+        self.setGeometry(100, 100, 400, 300)
+        
+        layout = QVBoxLayout()
 
-# Define font path for Minecraft font
-custom_font_path = "Minecraft.ttf"  # Path to your Minecraft font file
+        # Dark Mode Checkbox
+        self.dark_mode_checkbox = QPushButton("Toggle Dark Mode", self)
+        self.dark_mode_checkbox.setCheckable(True)
+        layout.addWidget(self.dark_mode_checkbox)
 
-class PDF(FPDF):
-    def header(self):
-        self.set_font("Arial", "B", 12)
-        self.cell(0, 10, "", 0, 1, "C")
+        # Save Location Button
+        self.save_location_button = QPushButton("Select Save Folder", self)
+        self.save_location_button.clicked.connect(self.select_save_folder)
+        layout.addWidget(self.save_location_button)
+
+        # Button box
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+        self.setLayout(layout)
+
+    def select_save_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder", PDF_FOLDER)
+        if folder:
+            global PDF_FOLDER  # Global declaration for PDF_FOLDER
+            PDF_FOLDER = folder
 
 class App(QWidget):
     def __init__(self):
         super().__init__()
-
-        # Initialize the application and load font
-        self.app = QApplication([])
-        self.load_custom_font()
 
         self.setWindowTitle("Code to PDF Converter")
         self.setGeometry(100, 100, 600, 500)
@@ -43,16 +57,6 @@ class App(QWidget):
         self.file_path = None
 
         self.initUI()
-
-    def load_custom_font(self):
-        font_db = QFontDatabase()
-        font_id = font_db.addApplicationFont(custom_font_path)
-        if font_id != -1:
-            custom_font = QFont(font_db.applicationFontFamilies(font_id)[0])
-            self.setFont(custom_font)
-        else:
-            # If font loading fails, fallback to default font
-            self.setFont(QFont("Minecraft"))
 
     def initUI(self):
         # Main layout
@@ -152,6 +156,9 @@ class App(QWidget):
         # Enable drag and drop (if implemented)
         self.setAcceptDrops(self.is_drag_and_drop_enabled)
 
+        # Apply dark mode if enabled
+        self.apply_dark_mode()
+
     def refresh_pdf_list(self):
         self.pdf_listbox.clear()
         pdf_files = [f for f in os.listdir(self.save_folder) if f.endswith(".pdf")]
@@ -191,33 +198,37 @@ class App(QWidget):
             "TypeScript File (.ts)": ".ts"
         }
 
-        if file_extension == valid_types.get(selected_type):
-            pdf = PDF()
+        if selected_type not in valid_types or file_extension != valid_types[selected_type]:
+            self.show_message("Invalid File Type", "Please select a valid file type.")
+            return
+
+        try:
+            pdf = FPDF()
+            pdf.set_auto_page_break(auto=True, margin=15)
             pdf.add_page()
-            pdf.set_font("Arial", size=12)
 
-            with open(self.file_path, "r") as file:
-                lines = file.readlines()
-                for line in lines:
-                    pdf.cell(200, 10, txt=line, ln=True)
+            with open(self.file_path, "r", encoding="utf-8") as file:
+                for line in file:
+                    pdf.multi_cell(0, 10, line)
 
-            save_path = os.path.join(self.save_folder, f"{os.path.basename(self.file_path)}.pdf")
-            pdf.output(save_path)
+            output_path = os.path.join(self.save_folder, os.path.basename(self.file_path) + ".pdf")
+            pdf.output(output_path)
 
+            self.show_message("Conversion Successful", f"File converted to PDF and saved to {output_path}")
             self.refresh_pdf_list()
-            self.show_message("Conversion Successful", f"File converted to PDF and saved to {save_path}")
-        else:
-            self.show_message("Invalid File Type", f"The selected file type {file_extension} doesn't match the expected type.")
+        except Exception as e:
+            self.show_message("Conversion Failed", str(e))
 
     def delete_pdf(self):
-        selected_items = self.pdf_listbox.selectedItems()
-        if selected_items:
-            item = selected_items[0]
-            pdf_file = item.text()
-            file_path = os.path.join(self.save_folder, pdf_file)
-            os.remove(file_path)
-            self.refresh_pdf_list()
-            self.show_message("PDF Deleted", f"The PDF {pdf_file} has been deleted.")
+        selected_item = self.pdf_listbox.currentItem()
+        if selected_item:
+            file_path = os.path.join(self.save_folder, selected_item.text())
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                self.show_message("PDF Deleted", f"{selected_item.text()} has been deleted.")
+                self.refresh_pdf_list()
+            else:
+                self.show_message("Error", "Selected file does not exist.")
         else:
             self.show_message("No Selection", "Please select a PDF to delete.")
 
@@ -225,50 +236,74 @@ class App(QWidget):
         os.startfile(self.save_folder)
 
     def open_settings_dialog(self):
-        settings_dialog = SettingsDialog(self)
-        settings_dialog.exec_()
+        dialog = SettingsDialog(self)
+        if dialog.exec_():
+            self.is_dark_mode = dialog.dark_mode_checkbox.isChecked()
+            self.save_folder = PDF_FOLDER  # Apply changes from settings
+            self.apply_dark_mode()
+
+    def apply_dark_mode(self):
+        if self.is_dark_mode:
+            self.setStyleSheet("""
+                QWidget {
+                    background-color: #2c3e50;
+                    color: #ecf0f1;
+                }
+                QPushButton {
+                    background-color: #34495e;
+                    color: #ecf0f1;
+                }
+                QComboBox {
+                    background-color: #34495e;
+                    color: #ecf0f1;
+                }
+                QLineEdit {
+                    background-color: #34495e;
+                    color: #ecf0f1;
+                }
+                QListWidget {
+                    background-color: #34495e;
+                    color: #ecf0f1;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QWidget {
+                    background-color: #ecf0f1;
+                    color: #2c3e50;
+                }
+                QPushButton {
+                    background-color: #3498db;
+                    color: white;
+                }
+                QComboBox {
+                    background-color: #ecf0f1;
+                    color: #2c3e50;
+                }
+                QLineEdit {
+                    background-color: #ecf0f1;
+                    color: #2c3e50;
+                }
+                QListWidget {
+                    background-color: #ecf0f1;
+                    color: #2c3e50;
+                }
+            """)
 
     def show_message(self, title, message):
-        QMessageBox.information(self, title, message)
-
-class SettingsDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Settings")
-        self.setGeometry(100, 100, 300, 200)
-
-        layout = QVBoxLayout()
-
-        self.drag_drop_checkbox = QCheckBox("Enable Drag and Drop")
-        self.drag_drop_checkbox.setChecked(parent.is_drag_and_drop_enabled)
-        layout.addWidget(self.drag_drop_checkbox)
-
-        change_folder_button = QPushButton("Change Save Folder")
-        change_folder_button.clicked.connect(self.change_save_folder)
-        layout.addWidget(change_folder_button)
-
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
-        button_box.accepted.connect(self.save_settings)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
-
-        self.parent = parent
-        self.setLayout(layout)
-
-    def change_save_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
-        if folder:
-            self.parent.save_folder = folder
-            self.parent.refresh_pdf_list()
-
-    def save_settings(self):
-        self.parent.is_drag_and_drop_enabled = self.drag_drop_checkbox.isChecked()
-        self.parent.setAcceptDrops(self.parent.is_drag_and_drop_enabled)
-        self.accept()
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle(title)
+        msg_box.setText(message)
+        msg_box.exec_()
 
 if __name__ == "__main__":
-    import sys
     app = QApplication(sys.argv)
+
+    # Set font (global)
+    font = QFont("Arial", 10)
+    app.setFont(font)
+
     window = App()
     window.show()
+
     sys.exit(app.exec_())
