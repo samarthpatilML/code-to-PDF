@@ -20,7 +20,7 @@ FILE_ICON_PATH = "folderblue.png"  # Icon for each saved file in the list
 class PDF(FPDF):
     def header(self):
         self.set_font("Arial", "B", 12)
-        self.cell(0, 10, "Code to PDF Conversion", 0, 1, "C")
+        self.cell(0, 10, "", 0, 1, "C")
 
 class App(QWidget):
     def __init__(self):
@@ -86,6 +86,12 @@ class App(QWidget):
         self.file_type_combobox.addItem("HTML File (.html)")
         self.file_type_combobox.addItem("CSS File (.css)")
         self.file_type_combobox.addItem("JavaScript File (.js)")
+        self.file_type_combobox.addItem("Ruby File (.rb)")
+        self.file_type_combobox.addItem("PHP File (.php)")
+        self.file_type_combobox.addItem("Swift File (.swift)")
+        self.file_type_combobox.addItem("Go File (.go)")
+        self.file_type_combobox.addItem("Perl File (.pl)")
+        self.file_type_combobox.addItem("TypeScript File (.ts)")
         self.file_type_combobox.setStyleSheet("font-size: 14px; padding: 5px;")
         layout.addWidget(self.file_type_combobox)
 
@@ -129,6 +135,9 @@ class App(QWidget):
         # Enable drag and drop (if implemented)
         self.setAcceptDrops(self.is_drag_and_drop_enabled)
 
+        # Apply dark mode if enabled
+        self.apply_dark_mode()
+
     def refresh_pdf_list(self):
         self.pdf_listbox.clear()
         pdf_files = [f for f in os.listdir(self.save_folder) if f.endswith(".pdf")]
@@ -160,6 +169,12 @@ class App(QWidget):
             "HTML File (.html)": ".html",
             "CSS File (.css)": ".css",
             "JavaScript File (.js)": ".js",
+            "Ruby File (.rb)": ".rb",
+            "PHP File (.php)": ".php",
+            "Swift File (.swift)": ".swift",
+            "Go File (.go)": ".go",
+            "Perl File (.pl)": ".pl",
+            "TypeScript File (.ts)": ".ts"
         }
 
         if selected_type not in valid_types or file_extension != valid_types[selected_type]:
@@ -184,20 +199,16 @@ class App(QWidget):
             self.show_message("Error", f"An error occurred: {e}")
 
     def delete_pdf(self):
-        selected = self.pdf_listbox.selectedItems()
-        if not selected:
-            self.show_message("No Selection", "Please select a PDF to delete.")
-            return
-
-        pdf_name = selected[0].text()
-        pdf_path = os.path.join(self.save_folder, pdf_name)
-
-        try:
-            os.remove(pdf_path)
-            self.refresh_pdf_list()
-            self.show_message("Success", f"{pdf_name} deleted.")
-        except Exception as e:
-            self.show_message("Error", f"Could not delete {pdf_name}: {e}")
+        selected = self.pdf_listbox.currentItem()
+        if selected:
+            pdf_name = selected.text()
+            pdf_path = os.path.join(self.save_folder, pdf_name)
+            try:
+                os.remove(pdf_path)
+                self.refresh_pdf_list()
+                self.show_message("Success", f"{pdf_name} deleted.")
+            except Exception as e:
+                self.show_message("Error", f"Could not delete {pdf_name}: {e}")
 
     def open_pdf_folder(self):
         os.startfile(self.save_folder)
@@ -208,6 +219,54 @@ class App(QWidget):
 
     def show_message(self, title, message):
         QMessageBox.information(self, title, message)
+
+    def apply_dark_mode(self):
+        if self.is_dark_mode:
+            dark_style = """
+                QWidget {
+                    background-color: #2c3e50;
+                    color: #ecf0f1;
+                }
+                QPushButton {
+                    background-color: #34495e;
+                    color: #ecf0f1;
+                }
+                QLineEdit, QComboBox {
+                    background-color: #34495e;
+                    color: #ecf0f1;
+                }
+                QListWidget {
+                    background-color: #34495e;
+                    color: #ecf0f1;
+                }
+                QLabel {
+                    color: #ecf0f1;
+                }
+            """
+            self.setStyleSheet(dark_style)
+        else:
+            light_style = """
+                QWidget {
+                    background-color: #ecf0f1;
+                    color: #2c3e50;
+                }
+                QPushButton {
+                    background-color: #3498db;
+                    color: white;
+                }
+                QLineEdit, QComboBox {
+                    background-color: #ecf0f1;
+                    color: #2c3e50;
+                }
+                QListWidget {
+                    background-color: #ecf0f1;
+                    color: #2c3e50;
+                }
+                QLabel {
+                    color: #2c3e50;
+                }
+            """
+            self.setStyleSheet(light_style)
 
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
@@ -247,6 +306,7 @@ class SettingsDialog(QDialog):
         self.parent.is_dark_mode = self.dark_mode_checkbox.isChecked()
         self.parent.is_drag_and_drop_enabled = self.drag_drop_checkbox.isChecked()
         self.parent.setAcceptDrops(self.parent.is_drag_and_drop_enabled)
+        self.parent.apply_dark_mode()  # Apply dark mode changes immediately
         self.accept()
 
 if __name__ == "__main__":
