@@ -1,37 +1,60 @@
 import os
 from fpdf import FPDF
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QLineEdit, QFileDialog, QListWidget, QMessageBox, QComboBox, QAction, QMenu, QRadioButton, QCheckBox, QDialog, QDialogButtonBox
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QLineEdit, QFileDialog,
+    QListWidget, QListWidgetItem, QMessageBox, QComboBox, QDialog, QDialogButtonBox, QCheckBox
+)
+from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtCore import Qt, QSize
 
-# Folder to store generated PDFs
+# Define folder paths and default save folder
 PDF_FOLDER = "SavedPDFs"
-
-# Create the folder if it doesn't exist
 if not os.path.exists(PDF_FOLDER):
     os.makedirs(PDF_FOLDER)
+
+# Paths for image assets (update these with your file paths)
+LOGO_ICON_PATH = "logo.png"  # Path to the app's logo
+SETTINGS_ICON_PATH = "settings.png"  # Path to the settings button icon
+FILE_ICON_PATH = "folderblue.png"  # Icon for each saved file in the list
 
 class PDF(FPDF):
     def header(self):
         self.set_font("Arial", "B", 12)
         self.cell(0, 10, "Code to PDF Conversion", 0, 1, "C")
 
-
 class App(QWidget):
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("Code to PDF Converter")
-        self.setGeometry(100, 100, 600, 450)
+        self.setGeometry(100, 100, 600, 500)
 
+        # Default settings
+        self.is_drag_and_drop_enabled = True
+        self.is_dark_mode = False
+        self.save_folder = PDF_FOLDER
         self.file_path = None
-        self.is_drag_and_drop_enabled = True  # Enable drag and drop by default
-        self.is_dark_mode = False  # Disable dark mode by default
 
         self.initUI()
 
     def initUI(self):
         # Main layout
         layout = QVBoxLayout()
+
+        # Settings button at the top left
+        settings_button = QPushButton(self)
+        settings_button.setIcon(QIcon(SETTINGS_ICON_PATH))
+        settings_button.setIconSize(QSize(24, 24))
+        settings_button.clicked.connect(self.open_settings_dialog)
+        settings_button.setStyleSheet("background-color: transparent; border: none;")
+        layout.addWidget(settings_button, alignment=Qt.AlignLeft)
+
+        # Logo
+        logo_label = QLabel(self)
+        logo_pixmap = QPixmap(LOGO_ICON_PATH)
+        logo_label.setPixmap(logo_pixmap.scaled(100, 100, Qt.KeepAspectRatio))
+        logo_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(logo_label)
 
         # Title Label
         self.title_label = QLabel("Code to PDF Converter", self)
@@ -63,9 +86,6 @@ class App(QWidget):
         self.file_type_combobox.addItem("HTML File (.html)")
         self.file_type_combobox.addItem("CSS File (.css)")
         self.file_type_combobox.addItem("JavaScript File (.js)")
-        self.file_type_combobox.addItem("Ruby File (.rb)")
-        self.file_type_combobox.addItem("PHP File (.php)")
-        self.file_type_combobox.addItem("Swift File (.swift)")
         self.file_type_combobox.setStyleSheet("font-size: 14px; padding: 5px;")
         layout.addWidget(self.file_type_combobox)
 
@@ -82,6 +102,7 @@ class App(QWidget):
 
         self.pdf_listbox = QListWidget(self)
         self.pdf_listbox.setStyleSheet("background-color: #ecf0f1; font-size: 14px; border: 1px solid #ccc; border-radius: 5px;")
+        self.pdf_listbox.setIconSize(QSize(32, 32))  # Adjust icon size for list items
         layout.addWidget(self.pdf_listbox)
 
         # Buttons for managing PDFs
@@ -105,51 +126,20 @@ class App(QWidget):
         # Refresh the list of PDFs on startup
         self.refresh_pdf_list()
 
-        # Add the settings menu button
-        self.create_settings_menu()
-
-        # Enable drag and drop
+        # Enable drag and drop (if implemented)
         self.setAcceptDrops(self.is_drag_and_drop_enabled)
 
-    def create_settings_menu(self):
-        # Create the settings button
-        self.settings_button = QPushButton("☰", self)
-        self.settings_button.setStyleSheet("font-size: 20px; background-color: transparent; border: none;")
-        self.settings_button.clicked.connect(self.open_settings_dialog)
-
-        # Add the settings button to the window
-        self.settings_button.setGeometry(10, 10, 40, 40)  # Position it in the top left corner
-
-    def open_settings_dialog(self):
-        settings_dialog = SettingsDialog(self)
-        settings_dialog.exec_()
-
-    def toggle_drag_and_drop(self, enabled):
-        self.is_drag_and_drop_enabled = enabled
-        self.setAcceptDrops(self.is_drag_and_drop_enabled)
-
-    def toggle_dark_mode(self, dark_mode):
-        self.is_dark_mode = dark_mode
-        if self.is_dark_mode:
-            self.setStyleSheet("background-color: #2C3E50; color: white;")
-        else:
-            self.setStyleSheet("background-color: #ecf0f1; color: black;")
-
-    def dragEnterEvent(self, event):
-        if self.is_drag_and_drop_enabled and event.mimeData().hasUrls():
-            event.acceptProposedAction()
-
-    def dropEvent(self, event):
-        if self.is_drag_and_drop_enabled:
-            file_url = event.mimeData().urls()[0].toLocalFile()
-            self.file_path = file_url
-            self.file_entry.setText(file_url)
+    def refresh_pdf_list(self):
+        self.pdf_listbox.clear()
+        pdf_files = [f for f in os.listdir(self.save_folder) if f.endswith(".pdf")]
+        for pdf_file in pdf_files:
+            item = QListWidgetItem(pdf_file)
+            item.setIcon(QIcon(FILE_ICON_PATH))  # Set icon for the item
+            self.pdf_listbox.addItem(item)
 
     def browse_file(self):
         file_dialog = QFileDialog(self)
         file_dialog.setFileMode(QFileDialog.ExistingFiles)
-        file_dialog.setViewMode(QFileDialog.List)
-
         if file_dialog.exec_():
             file_path = file_dialog.selectedFiles()[0]
             self.file_path = file_path
@@ -162,7 +152,6 @@ class App(QWidget):
 
         file_extension = os.path.splitext(self.file_path)[1]
         selected_type = self.file_type_combobox.currentText()
-
         valid_types = {
             "Text File (.txt)": ".txt",
             "Python File (.py)": ".py",
@@ -171,9 +160,6 @@ class App(QWidget):
             "HTML File (.html)": ".html",
             "CSS File (.css)": ".css",
             "JavaScript File (.js)": ".js",
-            "Ruby File (.rb)": ".rb",
-            "PHP File (.php)": ".php",
-            "Swift File (.swift)": ".swift"
         }
 
         if selected_type not in valid_types or file_extension != valid_types[selected_type]:
@@ -181,99 +167,87 @@ class App(QWidget):
             return
 
         try:
-            # Initialize PDF
             pdf = PDF()
             pdf.add_page()
             pdf.set_font("Arial", size=12)
 
-            # Read the content of the text file and write it to the PDF
             with open(self.file_path, "r", encoding="utf-8") as file:
                 for line in file:
                     pdf.multi_cell(0, 10, line)
 
-            # Save the PDF in the SavedPDFs folder
-            pdf_filename = os.path.join(PDF_FOLDER, os.path.basename(self.file_path).replace(file_extension, ".pdf"))
+            pdf_filename = os.path.join(self.save_folder, os.path.basename(self.file_path).replace(file_extension, ".pdf"))
             pdf.output(pdf_filename)
 
             self.show_message("Success", f"PDF saved successfully: {pdf_filename}")
             self.refresh_pdf_list()
         except Exception as e:
-            self.show_message("Error", f"An error occurred while processing the file: {e}")
-
-    def refresh_pdf_list(self):
-        self.pdf_listbox.clear()
-        pdf_files = [f for f in os.listdir(PDF_FOLDER) if f.endswith(".pdf")]
-        self.pdf_listbox.addItems(pdf_files)
+            self.show_message("Error", f"An error occurred: {e}")
 
     def delete_pdf(self):
         selected = self.pdf_listbox.selectedItems()
         if not selected:
-            self.show_message("Warning", "Please select a PDF to delete.")
+            self.show_message("No Selection", "Please select a PDF to delete.")
             return
 
         pdf_name = selected[0].text()
-        pdf_path = os.path.join(PDF_FOLDER, pdf_name)
+        pdf_path = os.path.join(self.save_folder, pdf_name)
+
         try:
             os.remove(pdf_path)
-            self.show_message("Success", f"Deleted: {pdf_name}")
             self.refresh_pdf_list()
+            self.show_message("Success", f"{pdf_name} deleted.")
         except Exception as e:
             self.show_message("Error", f"Could not delete {pdf_name}: {e}")
 
     def open_pdf_folder(self):
-        os.startfile(PDF_FOLDER)
+        os.startfile(self.save_folder)
+
+    def open_settings_dialog(self):
+        settings_dialog = SettingsDialog(self)
+        settings_dialog.exec_()
 
     def show_message(self, title, message):
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle(title)
-        msg_box.setText(message)
-        msg_box.exec_()
-
+        QMessageBox.information(self, title, message)
 
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-
         self.setWindowTitle("Settings")
         self.setGeometry(100, 100, 300, 200)
 
         layout = QVBoxLayout()
 
-        # Dark Mode Radio Buttons
-        dark_mode_label = QLabel("Dark Mode", self)
-        self.dark_mode_radio = QRadioButton("Enable", self)
-        self.light_mode_radio = QRadioButton("Disable", self)
-        if parent.is_dark_mode:
-            self.dark_mode_radio.setChecked(True)
-        else:
-            self.light_mode_radio.setChecked(True)
+        self.dark_mode_checkbox = QCheckBox("Enable Dark Mode")
+        self.dark_mode_checkbox.setChecked(parent.is_dark_mode)
+        layout.addWidget(self.dark_mode_checkbox)
 
-        layout.addWidget(dark_mode_label)
-        layout.addWidget(self.dark_mode_radio)
-        layout.addWidget(self.light_mode_radio)
+        self.drag_drop_checkbox = QCheckBox("Enable Drag and Drop")
+        self.drag_drop_checkbox.setChecked(parent.is_drag_and_drop_enabled)
+        layout.addWidget(self.drag_drop_checkbox)
 
-        # Drag and Drop Checkbox
-        self.drag_and_drop_checkbox = QCheckBox("Enable Drag and Drop", self)
-        self.drag_and_drop_checkbox.setChecked(parent.is_drag_and_drop_enabled)
-        layout.addWidget(self.drag_and_drop_checkbox)
+        self.change_folder_button = QPushButton("Change Save Folder")
+        self.change_folder_button.clicked.connect(self.change_save_folder)
+        layout.addWidget(self.change_folder_button)
 
-        # Buttons to apply settings
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
-        button_box.accepted.connect(self.apply_settings)
+        button_box.accepted.connect(self.save_settings)
         button_box.rejected.connect(self.reject)
-
         layout.addWidget(button_box)
+
+        self.parent = parent
         self.setLayout(layout)
 
-    def apply_settings(self):
-        dark_mode = self.dark_mode_radio.isChecked()
-        drag_and_drop = self.drag_and_drop_checkbox.isChecked()
+    def change_save_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if folder:
+            self.parent.save_folder = folder
+            self.parent.refresh_pdf_list()
 
-        self.parent().toggle_dark_mode(dark_mode)
-        self.parent().toggle_drag_and_drop(drag_and_drop)
-
+    def save_settings(self):
+        self.parent.is_dark_mode = self.dark_mode_checkbox.isChecked()
+        self.parent.is_drag_and_drop_enabled = self.drag_drop_checkbox.isChecked()
+        self.parent.setAcceptDrops(self.parent.is_drag_and_drop_enabled)
         self.accept()
-
 
 if __name__ == "__main__":
     app = QApplication([])
