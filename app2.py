@@ -120,7 +120,7 @@ class App(QWidget):
 
         # Saved PDFs Section
         saved_label = QLabel("Saved PDFs", self)
-        saved_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #34495e;")
+        saved_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #AE445A;")
         layout.addWidget(saved_label)
 
         self.pdf_listbox = QListWidget(self)
