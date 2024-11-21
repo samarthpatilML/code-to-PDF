@@ -13,9 +13,9 @@ if not os.path.exists(PDF_FOLDER):
     os.makedirs(PDF_FOLDER)
 
 # Paths for image assets (update these with your file paths)
-LOGO_ICON_PATH = "logo.png"  # Path to the app's logo
-SETTINGS_ICON_PATH = "settings.png"  # Path to the settings button icon
-FILE_ICON_PATH = "folderbluer.png"  # Icon for each saved file in the list
+LOGO_ICON_PATH = os.path.join("images", "logo.png")
+SETTINGS_ICON_PATH = os.path.join("images", "settings.png")
+FILE_ICON_PATH = os.path.join("images", "folderbluer.png")
 
 class PDF(FPDF):
     def header(self):
